@@ -575,6 +575,100 @@ h1, h2, h3 {
   color: var(--text-muted);
 }
 
+.category-tag--review {
+  color: var(--orange);
+}
+
+.category-tag-hint {
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.report-mom-excluded-amount {
+  color: var(--text-muted);
+}
+
+.report-mom-excluded-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-sans);
+  line-height: 1.35;
+}
+
+.report-actions-th {
+  text-align: right;
+  min-width: 7rem;
+}
+
+.report-actions-cell {
+  vertical-align: top;
+  text-align: right;
+}
+
+.report-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.btn-report-action {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+.btn-report-action:hover:not(:disabled) {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.btn-report-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-report-include {
+  border-color: rgba(34, 197, 94, 0.35);
+  color: var(--green);
+  background: var(--green-bg);
+}
+
+.btn-report-include:hover:not(:disabled) {
+  border-color: var(--green);
+}
+
+.btn-report-decline {
+  color: var(--orange);
+}
+
+.btn-report-flag {
+  color: var(--yellow);
+}
+
+.btn-report-delete {
+  color: var(--red);
+}
+
+.report-flagged-pill {
+  display: block;
+  font-size: 10px;
+  color: var(--yellow);
+  margin-top: 6px;
+  text-align: right;
+}
+
+.mom-pay-cell--excluded {
+  opacity: 0.92;
+}
+
 .currency {
   color: var(--text-muted);
   font-size: 11px;
@@ -617,6 +711,52 @@ h1, h2, h3 {
   border-radius: var(--radius);
   color: var(--green);
   font-size: 13px;
+}
+
+.report-payment-cta {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.report-payment-cta-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.report-payment-cta-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+  max-width: 40em;
+}
+
+.btn-payment-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  background: var(--blue);
+  color: #fff;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-payment-link:hover {
+  opacity: 0.9;
 }
 
 /* ─── Mom-facing report (token link): summary, legibility, mobile cards ─── */
@@ -820,6 +960,17 @@ h1, h2, h3 {
   .page-report--mom .expense-table--mom tbody tr.expense-row td:nth-child(4) { order: 2; }
   .page-report--mom .expense-table--mom tbody tr.expense-row td:nth-child(5) { order: 6; }
   .page-report--mom .expense-table--mom tbody tr.expense-row td:nth-child(6) { order: 3; }
+  .page-report--mom .expense-table--mom tbody tr.expense-row td:nth-child(7) {
+    order: 8;
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .page-report--mom .expense-table--mom tbody tr.expense-row td:nth-child(7) .report-row-actions {
+    justify-content: flex-start;
+  }
 
   .page-report--mom .expense-table--mom tbody tr.expense-row td:nth-child(2) {
     flex-direction: column;
@@ -1633,6 +1784,10 @@ h1, h2, h3 {
 .row-unknown { background: var(--orange-bg); }
 .row-flagged { background: var(--red-bg); }
 .row-confirmed { opacity: 0.65; }
+.row-other-await-ok {
+  background: rgba(192, 38, 211, 0.07);
+  box-shadow: inset 3px 0 0 #c026d3;
+}
 
 /* Status dots */
 .dot {
@@ -1647,6 +1802,7 @@ h1, h2, h3 {
 .dot-yellow { background: var(--yellow); }
 .dot-orange { background: var(--orange); }
 .dot-red    { background: var(--red); }
+.dot-magenta { background: #c026d3; }
 
 /* Column widths */
 .col-dot      { width: 24px; text-align: center; }
@@ -1654,6 +1810,71 @@ h1, h2, h3 {
 .col-amount   { width: 120px; text-align: right; }
 .col-merchant { min-width: 160px; }
 .col-category { width: 90px; }
+.col-other-ok {
+  width: 104px;
+  min-width: 96px;
+  vertical-align: top;
+  font-size: 10px;
+}
+
+.other-ok-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.other-ok-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: 0.02em;
+}
+
+.other-await-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #c026d3;
+}
+
+.btn-other-ok,
+.btn-other-revoke {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.btn-other-ok {
+  border-color: rgba(192, 38, 211, 0.45);
+  color: #e879f9;
+}
+
+.btn-other-ok:hover:not(:disabled) {
+  border-color: #c026d3;
+  background: rgba(192, 38, 211, 0.1);
+}
+
+.btn-other-revoke:hover:not(:disabled) {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.btn-other-ok:disabled,
+.btn-other-revoke:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mom-pay-cell--blocked .mom-pay-note {
+  max-width: 140px;
+}
+
 .col-mom-pay {
   width: 168px;
   min-width: 156px;
@@ -1775,6 +1996,18 @@ h1, h2, h3 {
 .mom-pay-partial-input:focus {
   outline: none;
   border-color: var(--blue);
+}
+
+.review-other-banner {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(192, 38, 211, 0.35);
+  background: rgba(192, 38, 211, 0.08);
+  max-width: 48em;
 }
 
 .review-mom-hint {
@@ -1968,6 +2201,12 @@ h1, h2, h3 {
 .actions-hint {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.actions-hint--block {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 4px;
 }
 
 .btn-publish {

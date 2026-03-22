@@ -2,9 +2,12 @@ import { useState, useRef, useEffect, Fragment, type KeyboardEvent } from 'react
 import { supabase } from '../lib/supabase'
 import { CropSelector } from './CropSelector'
 import {
+  defaultMomIncludedInPay,
+  defaultOtherOkForMom,
   excessOverCap,
   formatThb,
-  isAlwaysFullMomPay,
+  isMomIncludedInPay,
+  isReportGreenMomPay,
   isUncappedGreenCategory,
   MOM_PAY_CAP_THB,
   reimbursableForMom,
@@ -12,7 +15,7 @@ import {
   usesMomPayCap,
 } from '../lib/momPay'
 import { displayMerchantName } from '../lib/merchantDisplay'
-import type { MomPayMode } from '../types'
+import type { ExpenseCategory, MomPayMode } from '../types'
 
 export interface ExpenseRow {
   id: string
@@ -30,6 +33,8 @@ export interface ExpenseRow {
   signedImageUrl?: string | null
   mom_pay_mode?: MomPayMode
   mom_partial_excess_amount?: number
+  mom_included_in_pay?: boolean
+  other_ok_for_mom?: boolean
 }
 
 interface EditState {
@@ -49,6 +54,7 @@ const METHODS = ['qr', 'card', 'unknown'] as const
 
 function rowClass(e: ExpenseRow): string {
   if (e.status === 'flagged') return 'row-flagged'
+  if (e.category === 'other' && e.other_ok_for_mom !== true) return 'row-other-await-ok'
   if (e.status === 'confirmed') return 'row-confirmed'
   if (!e.merchant_id) return 'row-unknown'
   if (e.needs_review && !e.auto_classified) return 'row-unknown'
@@ -59,6 +65,7 @@ function rowClass(e: ExpenseRow): string {
 
 function rowDot(e: ExpenseRow): string {
   if (e.status === 'flagged') return 'dot-red'
+  if (e.category === 'other' && e.other_ok_for_mom !== true) return 'dot-magenta'
   if (e.status === 'confirmed') return 'dot-green'
   if (!e.merchant_id || (e.needs_review && !e.auto_classified)) return 'dot-orange'
   if (e.needs_review) return 'dot-yellow'
@@ -128,6 +135,16 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
     try {
       if (field === 'merchant_name') {
         await saveMerchant(id, value)
+      } else if (field === 'category') {
+        const cat = value as ExpenseCategory
+        await supabase
+          .from('expenses')
+          .update({
+            category: cat,
+            mom_included_in_pay: defaultMomIncludedInPay(cat),
+            other_ok_for_mom: defaultOtherOkForMom(cat),
+          })
+          .eq('id', id)
       } else {
         await supabase
           .from('expenses')
@@ -251,6 +268,22 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
     }
   }
 
+  async function setOtherOkForMom(expense: ExpenseRow, ok: boolean) {
+    setSaving(expense.id)
+    try {
+      await supabase
+        .from('expenses')
+        .update({
+          other_ok_for_mom: ok,
+          mom_included_in_pay: ok,
+        })
+        .eq('id', expense.id)
+    } finally {
+      setSaving(null)
+      onRefresh()
+    }
+  }
+
   async function deleteExpense(expense: ExpenseRow) {
     setSaving(expense.id)
     try {
@@ -310,6 +343,9 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
             <th className="col-amount">amount</th>
             <th className="col-merchant">merchant</th>
             <th className="col-category">category</th>
+            <th className="col-other-ok" title="You must OK each Other slip before mom can pay or you can publish">
+              other→mom
+            </th>
             <th className="col-mom-pay">Mom pays</th>
             <th className="col-method">method</th>
             <th className="col-status">status</th>
@@ -416,6 +452,38 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
                     ) : <span className="category-tag">{expense.category}</span>}
                   </td>
 
+                  <td className="col-other-ok" onClick={e => e.stopPropagation()}>
+                    {expense.category === 'other' ? (
+                      expense.other_ok_for_mom ? (
+                        <div className="other-ok-cell">
+                          <span className="other-ok-badge">OK</span>
+                          <button
+                            type="button"
+                            className="btn-other-revoke"
+                            disabled={isSaving || isRerunning}
+                            onClick={() => setOtherOkForMom(expense, false)}
+                          >
+                            Revoke
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="other-ok-cell">
+                          <span className="other-await-label">Needs you</span>
+                          <button
+                            type="button"
+                            className="btn-other-ok"
+                            disabled={isSaving || isRerunning}
+                            onClick={() => setOtherOkForMom(expense, true)}
+                          >
+                            OK for mom
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+
                   {/* Mom pay cap / green transit */}
                   <td className="col-mom-pay" onClick={e => e.stopPropagation()}>
                     <MomPayCell
@@ -479,7 +547,7 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
 
                 {proofId === expense.id && (
                   <tr className="proof-row">
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <ProofCell
                         url={expense.signedImageUrl}
                         rawMerchant={expense.ocr?.raw_merchant_string}
@@ -524,7 +592,33 @@ function MomPayCell({
     setPartialDraft(String(partialStored))
   }, [expense.id, partialStored, mode])
 
-  if (isAlwaysFullMomPay({ category: cat, merchant: expense.merchant, ocr: expense.ocr })) {
+  if (cat === 'other' && expense.other_ok_for_mom !== true) {
+    return (
+      <div className="mom-pay-cell mom-pay-cell--blocked">
+        <span className="text-muted">—</span>
+        <div className="mom-pay-note">OK in other→mom first</div>
+      </div>
+    )
+  }
+
+  if (!isMomIncludedInPay({ mom_included_in_pay: expense.mom_included_in_pay, category: cat })) {
+    return (
+      <div className="mom-pay-cell mom-pay-cell--excluded">
+        <span className="mono text-muted">{formatThb(0)}</span>
+        <div className="mom-pay-note">Mom has not included this line, or she declined</div>
+      </div>
+    )
+  }
+
+  if (
+    isReportGreenMomPay({
+      category: cat,
+      merchant: expense.merchant,
+      ocr: expense.ocr,
+      mom_included_in_pay: expense.mom_included_in_pay,
+      other_ok_for_mom: expense.other_ok_for_mom,
+    })
+  ) {
     const starbucks = !isUncappedGreenCategory(cat)
     return (
       <div className="mom-pay-cell mom-pay-cell--green">

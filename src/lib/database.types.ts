@@ -50,6 +50,8 @@ export interface Database {
           status: 'pending' | 'confirmed' | 'flagged'
           mom_pay_mode: 'cap' | 'partial' | 'full'
           mom_partial_excess_amount: number
+          mom_included_in_pay: boolean
+          other_ok_for_mom: boolean
           created_at: string
         }
         Insert: {
@@ -66,6 +68,8 @@ export interface Database {
           status?: 'pending' | 'confirmed' | 'flagged'
           mom_pay_mode?: 'cap' | 'partial' | 'full'
           mom_partial_excess_amount?: number
+          mom_included_in_pay?: boolean
+          other_ok_for_mom?: boolean
           created_at?: string
         }
         Update: {
@@ -82,6 +86,8 @@ export interface Database {
           status?: 'pending' | 'confirmed' | 'flagged'
           mom_pay_mode?: 'cap' | 'partial' | 'full'
           mom_partial_excess_amount?: number
+          mom_included_in_pay?: boolean
+          other_ok_for_mom?: boolean
           created_at?: string
         }
       }

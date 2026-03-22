@@ -54,14 +54,70 @@ function normalizeMomPayMode(m: string | undefined): MomPayMode {
   return 'cap'
 }
 
+/** New slips: "other" waits for mom to include; everything else defaults included. */
+export function defaultMomIncludedInPay(category: ExpenseCategory): boolean {
+  return category !== 'other'
+}
+
+/** "Other" is never auto-OK for mom's bill until you allow it. */
+export function defaultOtherOkForMom(category: ExpenseCategory): boolean {
+  return category !== 'other'
+}
+
+/** Whether this line counts toward mom's payment (false = she declined or not yet included). */
+export function isMomIncludedInPay(e: {
+  mom_included_in_pay?: boolean | null
+  category?: ExpenseCategory
+}): boolean {
+  if (e.mom_included_in_pay === false) return false
+  if (e.mom_included_in_pay === true) return true
+  if (e.category === 'other') return false
+  return true
+}
+
+/** You (organizer) allowed this "other" slip onto mom's bill. Food / rides / transport are always OK. */
+export function isOrganizerOkForMomPay(e: {
+  category: ExpenseCategory
+  other_ok_for_mom?: boolean | null
+}): boolean {
+  if (e.category !== 'other') return true
+  return e.other_ok_for_mom === true
+}
+
+/** Line can affect mom's totals: organizer OK (for "other") + mom did not decline. */
+export function isEligibleForMomPay(e: {
+  category: ExpenseCategory
+  other_ok_for_mom?: boolean | null
+  mom_included_in_pay?: boolean | null
+}): boolean {
+  return isOrganizerOkForMomPay(e) && isMomIncludedInPay(e)
+}
+
+/** Green "full slip" styling on mom's report: never for category "other". */
+export function isReportGreenMomPay(
+  e: {
+    category: ExpenseCategory
+    mom_included_in_pay?: boolean | null
+    other_ok_for_mom?: boolean | null
+  } & MerchantFields,
+): boolean {
+  if (!isEligibleForMomPay(e)) return false
+  if (e.category === 'other') return false
+  return isAlwaysFullMomPay(e)
+}
+
 export function reimbursableForMom(
   e: {
     amount: number
     category: ExpenseCategory
     mom_pay_mode?: string
     mom_partial_excess_amount?: number
+    mom_included_in_pay?: boolean | null
+    other_ok_for_mom?: boolean | null
   } & MerchantFields,
 ): number {
+  if (!isEligibleForMomPay(e)) return 0
+
   const amt = round2(e.amount)
   const mode = normalizeMomPayMode(e.mom_pay_mode)
   const partialRaw = round2(Math.max(0, e.mom_partial_excess_amount ?? 0))
@@ -84,6 +140,8 @@ export function uncoveredExcess(
     category: ExpenseCategory
     mom_pay_mode?: string
     mom_partial_excess_amount?: number
+    mom_included_in_pay?: boolean | null
+    other_ok_for_mom?: boolean | null
   } & MerchantFields,
 ): number {
   const amt = round2(e.amount)

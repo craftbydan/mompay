@@ -7,7 +7,8 @@ import { supabase } from '../lib/supabase'
 import { runOcr } from '../lib/ocr'
 import { normalizeMerchant } from '../lib/normalize'
 import { friendlyProcessingError } from '../lib/uploadErrors'
-import type { Report } from '../types'
+import type { ExpenseCategory, Report } from '../types'
+import { defaultMomIncludedInPay, defaultOtherOkForMom } from '../lib/momPay'
 
 /** Parallel slip pipeline (create row → upload → OCR → normalize). OpenAI tier RPM/TPM may limit higher values. */
 const CONCURRENCY = 10
@@ -130,6 +131,8 @@ export function ReportDetailPage() {
           category: 'other',
           mom_pay_mode: 'cap',
           mom_partial_excess_amount: 0,
+          mom_included_in_pay: false,
+          other_ok_for_mom: false,
         })
         .select()
         .single()
@@ -189,17 +192,23 @@ export function ReportDetailPage() {
       )
 
       if (merchant) {
+        const cat = merchant.category as ExpenseCategory
         await supabase.from('expenses').update({
           merchant_id: merchant.merchant_id,
           category: merchant.category,
           payment_method: merchant.payment_method,
           auto_classified: merchant.auto_classified,
-          needs_review: merchant.needs_review,
+          needs_review: cat === 'other' ? true : merchant.needs_review,
+          mom_included_in_pay: defaultMomIncludedInPay(cat),
+          other_ok_for_mom: defaultOtherOkForMom(cat),
         }).eq('id', expenseId)
       } else {
+        const cat = ocrResult.spend_category as ExpenseCategory
         await supabase.from('expenses').update({
           category: ocrResult.spend_category,
-          needs_review: true,
+          needs_review: cat === 'other' ? true : ocrResult.confidence !== 'high',
+          mom_included_in_pay: defaultMomIncludedInPay(cat),
+          other_ok_for_mom: defaultOtherOkForMom(cat),
         }).eq('id', expenseId)
       }
 
@@ -281,17 +290,23 @@ export function ReportDetailPage() {
     )
 
     if (merchant) {
+      const cat = merchant.category as ExpenseCategory
       await supabase.from('expenses').update({
         merchant_id: merchant.merchant_id,
         category: merchant.category,
         payment_method: merchant.payment_method,
         auto_classified: merchant.auto_classified,
-        needs_review: merchant.needs_review,
+        needs_review: cat === 'other' ? true : merchant.needs_review,
+        mom_included_in_pay: defaultMomIncludedInPay(cat),
+        other_ok_for_mom: defaultOtherOkForMom(cat),
       }).eq('id', expense.id)
     } else {
+      const cat = ocrResult.spend_category as ExpenseCategory
       await supabase.from('expenses').update({
         category: ocrResult.spend_category,
-        needs_review: true,
+        needs_review: cat === 'other' ? true : ocrResult.confidence !== 'high',
+        mom_included_in_pay: defaultMomIncludedInPay(cat),
+        other_ok_for_mom: defaultOtherOkForMom(cat),
       }).eq('id', expense.id)
     }
 
@@ -354,6 +369,13 @@ export function ReportDetailPage() {
 
   async function handlePublish() {
     if (!report) return
+    const otherNotOk = expenses.filter(e => e.category === 'other' && e.other_ok_for_mom !== true)
+    if (otherNotOk.length > 0) {
+      window.alert(
+        `You have ${otherNotOk.length} slip${otherNotOk.length === 1 ? '' : 's'} in category “Other” that are not OK’d for mom yet. Open the “Other → mom” column and tap OK for each, or change the category, then publish.`,
+      )
+      return
+    }
     setPublishing(true)
     const { error } = await supabase
       .from('reports')
@@ -370,7 +392,9 @@ export function ReportDetailPage() {
 
   const pendingCount = expenses.filter(e => e.status === 'pending').length
   const allConfirmedOrFlagged = expenses.length > 0 && pendingCount === 0
-  const canPublish = report?.status === 'draft' && allConfirmedOrFlagged
+  const otherAwaitingOk = expenses.filter(e => e.category === 'other' && e.other_ok_for_mom !== true).length
+  const canPublish =
+    report?.status === 'draft' && allConfirmedOrFlagged && otherAwaitingOk === 0
   const reportLink = report ? `${window.location.origin}/report/${report.token}` : ''
 
   function copyLink() {
@@ -464,12 +488,18 @@ export function ReportDetailPage() {
                   <span className="legend-item"><span className="dot dot-yellow" aria-hidden /> Double-check</span>
                   <span className="legend-item"><span className="dot dot-orange" aria-hidden /> Unknown merchant</span>
                   <span className="legend-item"><span className="dot dot-red" aria-hidden /> Flagged</span>
+                  <span className="legend-item"><span className="dot dot-magenta" aria-hidden /> Other — needs your OK</span>
                 </div>
               </div>
+              {report.status === 'draft' && otherAwaitingOk > 0 && (
+                <p className="review-other-banner" role="status">
+                  <strong>{otherAwaitingOk}</strong> slip{otherAwaitingOk !== 1 ? 's are' : ' is'} in <strong>Other</strong> and need your OK before mom can see them on her bill (and before you can publish). Use the <strong>Other → mom</strong> column.
+                </p>
+              )}
               <p className="review-mom-hint">
                 <span className="mom-pay-green-flag" aria-hidden>●</span>
-                <strong>Mom pay:</strong> Grab, transportation, and <strong>Starbucks</strong> = full slip (green). Other food &amp; other = up to{' '}
-                <span className="mono">฿200</span> by default; use <em>Cap only</em>, <em>Adjust</em>, or <em>Full slip</em>.
+                <strong>Mom pay:</strong> Grab, transportation, and <strong>Starbucks</strong> behave like before (full slip when eligible). <strong>Other</strong> is never automatic: you must OK each line for mom; OCR marks them for review. Food = up to{' '}
+                <span className="mono">฿200</span> by default; use <em>Cap only</em>, <em>Adjust</em>, or <em>Full slip</em>. Mom can still decline a line after you OK it.
               </p>
               <ReviewTable
                 expenses={expenses}
@@ -494,6 +524,11 @@ export function ReportDetailPage() {
                       {confirmingAll ? 'Confirming…' : `Confirm all (${pendingCount})`}
                     </button>
                   </div>
+                )}
+                {allConfirmedOrFlagged && otherAwaitingOk > 0 && (
+                  <span className="actions-hint actions-hint--block">
+                    Fix or OK all <strong>Other</strong> slips above to enable publish.
+                  </span>
                 )}
                 {canPublish && (
                   <button

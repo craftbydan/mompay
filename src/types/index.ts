@@ -42,6 +42,10 @@ export interface Expense {
   mom_pay_mode?: MomPayMode
   /** THB of the *excess* (above ฿200) mom will cover when mode is partial; clamped to actual excess */
   mom_partial_excess_amount?: number
+  /** If false, mom pays 0 on this line (declined or "other" until she includes it). */
+  mom_included_in_pay?: boolean
+  /** You must OK each "other" slip before it can appear on mom's totals / publish. */
+  other_ok_for_mom?: boolean
   created_at: string
   merchant?: Merchant
 }

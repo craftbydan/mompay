@@ -104,6 +104,8 @@ function ReportCard({ report, onClick }: { report: Report; onClick: () => void }
             category: (row.category ?? 'other') as 'food' | 'grab' | 'transportation' | 'other',
             mom_pay_mode: row.mom_pay_mode as string | undefined,
             mom_partial_excess_amount: Number(row.mom_partial_excess_amount) || 0,
+            mom_included_in_pay: row.mom_included_in_pay as boolean | undefined,
+            other_ok_for_mom: row.other_ok_for_mom as boolean | undefined,
             merchant,
             ocr,
           })
@@ -115,7 +117,7 @@ function ReportCard({ report, onClick }: { report: Report; onClick: () => void }
     supabase
       .from('expenses')
       .select(
-        'amount, category, mom_pay_mode, mom_partial_excess_amount, merchant:merchants(canonical_name), ocr:ocr_raw(raw_merchant_string)',
+        'amount, category, mom_pay_mode, mom_partial_excess_amount, mom_included_in_pay, other_ok_for_mom, merchant:merchants(canonical_name), ocr:ocr_raw(raw_merchant_string)',
       )
       .eq('report_id', report.id)
       .then(({ data, error }) => {
