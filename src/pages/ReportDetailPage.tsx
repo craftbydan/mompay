@@ -503,6 +503,7 @@ export function ReportDetailPage() {
               </p>
               <ReviewTable
                 expenses={expenses}
+                reportStatus={report.status}
                 onRefresh={() => fetchExpenses(id!)}
                 onRerunOcr={report.status === 'draft' ? handleRerunOcr : undefined}
               />

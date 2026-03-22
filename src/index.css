@@ -2077,7 +2077,38 @@ h1, h2, h3 {
 
 .col-method   { width: 68px; }
 .col-status   { width: 90px; }
+.col-remove   { width: 108px; vertical-align: middle; }
 .col-actions  { width: 90px; }
+
+.btn-remove-slip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 104px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  line-height: 1.2;
+  color: var(--red);
+  background: var(--red-bg);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.12s, border-color 0.12s, background 0.12s;
+}
+
+.btn-remove-slip:hover:not(:disabled) {
+  border-color: var(--red);
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.btn-remove-slip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* Cell editing */
 .cell-input,
@@ -2144,12 +2175,6 @@ h1, h2, h3 {
   border-color: var(--blue);
   color: var(--blue);
   background: var(--blue-bg);
-}
-
-.delete-btn:hover {
-  border-color: var(--red);
-  color: var(--red);
-  background: var(--red-bg);
 }
 
 .rerun-btn:hover {

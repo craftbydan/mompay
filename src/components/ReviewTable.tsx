@@ -16,7 +16,19 @@ import {
 } from '../lib/momPay'
 import { displayMerchantName } from '../lib/merchantDisplay'
 import { CategoryPill } from './CategoryPill'
-import type { ExpenseCategory, MomPayMode } from '../types'
+import type { ExpenseCategory, MomPayMode, ReportStatus } from '../types'
+
+function confirmRemoveSlips(reportStatus: ReportStatus | undefined, count: number): boolean {
+  const shared = reportStatus === 'pending' || reportStatus === 'approved'
+  const lead =
+    count === 1
+      ? 'Remove this slip from the report? The receipt file will be deleted. This cannot be undone.'
+      : `Remove ${count} slips from the report? Receipt files will be deleted. This cannot be undone.`
+  const tail = shared
+    ? '\n\nYou already sent this report to mom — her totals update when she refreshes the page.'
+    : ''
+  return window.confirm(lead + tail)
+}
 
 export interface ExpenseRow {
   id: string
@@ -48,6 +60,8 @@ interface ReviewTableProps {
   expenses: ExpenseRow[]
   onRefresh: () => void
   onRerunOcr?: (expense: ExpenseRow) => Promise<void>
+  /** Used for clearer delete confirmations when the link is already shared */
+  reportStatus?: ReportStatus
 }
 
 const CATEGORIES = ['food', 'grab', 'transportation', 'other'] as const
@@ -73,7 +87,7 @@ function rowDot(e: ExpenseRow): string {
   return 'dot-green'
 }
 
-export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProps) {
+export function ReviewTable({ expenses, onRefresh, onRerunOcr, reportStatus }: ReviewTableProps) {
   const [editState, setEditState] = useState<EditState | null>(null)
   const [proofId, setProofId] = useState<string | null>(null)
   const [saving, setSaving] = useState<string | null>(null)
@@ -107,7 +121,7 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
 
   async function handleBulkDelete() {
     if (selected.size === 0) return
-    if (!confirm(`Delete ${selected.size} expense${selected.size !== 1 ? 's' : ''}?`)) return
+    if (!confirmRemoveSlips(reportStatus, selected.size)) return
     setBulkDeleting(true)
     try {
       const ids = [...selected]
@@ -323,7 +337,7 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
             onClick={handleBulkDelete}
             disabled={bulkDeleting}
           >
-            {bulkDeleting ? 'deleting…' : `delete (${selected.size})`}
+            {bulkDeleting ? 'Removing…' : `Remove ${selected.size} slip${selected.size !== 1 ? 's' : ''}`}
           </button>
         </div>
       )}
@@ -350,7 +364,8 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
             <th className="col-mom-pay">Mom pays</th>
             <th className="col-method">method</th>
             <th className="col-status">status</th>
-            <th className="col-actions" />
+            <th className="col-remove">Remove slip</th>
+            <th className="col-actions" title="Confirm, flag, receipt, re-OCR">Tools</th>
           </tr>
         </thead>
         <tbody>
@@ -516,6 +531,20 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
                     <span className={`status-badge status-${expense.status}`}>{expense.status}</span>
                   </td>
 
+                  {/* Remove slip */}
+                  <td className="col-remove" onClick={e => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn-remove-slip"
+                      disabled={isSaving || isRerunning}
+                      onClick={() => {
+                        if (confirmRemoveSlips(reportStatus, 1)) void deleteExpense(expense)
+                      }}
+                    >
+                      Remove slip
+                    </button>
+                  </td>
+
                   {/* Actions */}
                   <td className="col-actions">
                     <div className="row-action-group">
@@ -541,16 +570,13 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
                           {isRerunning ? '…' : '↻'}
                         </button>
                       )}
-                      <button className="action-btn delete-btn" title="Delete"
-                        onClick={() => { if (confirm('Delete this expense?')) deleteExpense(expense) }}
-                        disabled={isSaving || isRerunning}>×</button>
                     </div>
                   </td>
                 </tr>
 
                 {proofId === expense.id && (
                   <tr className="proof-row">
-                    <td colSpan={11}>
+                    <td colSpan={12}>
                       <ProofCell
                         url={expense.signedImageUrl}
                         rawMerchant={expense.ocr?.raw_merchant_string}
