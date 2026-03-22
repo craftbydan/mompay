@@ -15,6 +15,7 @@ import {
   usesMomPayCap,
 } from '../lib/momPay'
 import { displayMerchantName } from '../lib/merchantDisplay'
+import { CategoryPill } from './CategoryPill'
 import type { ExpenseCategory, MomPayMode } from '../types'
 
 export interface ExpenseRow {
@@ -449,7 +450,9 @@ export function ReviewTable({ expenses, onRefresh, onRerunOcr }: ReviewTableProp
                       >
                         {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
-                    ) : <span className="category-tag">{expense.category}</span>}
+                    ) : (
+                      <CategoryPill category={expense.category} />
+                    )}
                   </td>
 
                   <td className="col-other-ok" onClick={e => e.stopPropagation()}>

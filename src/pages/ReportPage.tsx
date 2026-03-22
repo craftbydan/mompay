@@ -1,5 +1,6 @@
 import { useEffect, useState, Fragment, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
+import { CategoryPill } from '../components/CategoryPill'
 import { Layout } from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { displayMerchantName } from '../lib/merchantDisplay'
@@ -14,12 +15,6 @@ import {
 } from '../lib/momPay'
 import type { Report, Expense } from '../types'
 
-const CATEGORY_LABEL: Record<string, string> = {
-  food: 'Food',
-  grab: 'Grab',
-  transportation: 'Transport',
-  other: 'Other',
-}
 const METHOD_LABEL = { qr: 'QR', card: 'Card', unknown: '—' }
 
 function parseMomPaymentUrl(raw: string | undefined): string | null {
@@ -273,10 +268,11 @@ export function ReportPage() {
                           )}
                         </td>
                         <td data-label="Category">
-                          <span
-                            className={`category-tag${expense.category === 'other' ? ' category-tag--review' : ''}`}
-                          >
-                            {CATEGORY_LABEL[expense.category] ?? expense.category}
+                          <span className="category-pill-row">
+                            <CategoryPill
+                              category={expense.category}
+                              otherEmphasis={expense.category === 'other'}
+                            />
                             {expense.category === 'other' && (
                               <span className="category-tag-hint"> · review</span>
                             )}

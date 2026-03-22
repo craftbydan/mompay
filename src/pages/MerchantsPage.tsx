@@ -1,4 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
+import { CategoryPill } from '../components/CategoryPill'
 import { Layout } from '../components/Layout'
 import { supabase } from '../lib/supabase'
 
@@ -202,7 +203,7 @@ export function MerchantsPage() {
                             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         ) : (
-                          <span className="category-tag">{merchant.category}</span>
+                          <CategoryPill category={merchant.category} />
                         )}
                       </td>
 
