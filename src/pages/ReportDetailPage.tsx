@@ -28,7 +28,7 @@ export function ReportDetailPage() {
 
   const [publishing, setPublishing] = useState(false)
   const [confirmingAll, setConfirmingAll] = useState(false)
-  const [deletingDraft, setDeletingDraft] = useState(false)
+  const [deletingReport, setDeletingReport] = useState(false)
 
   // ─── Data loading ──────────────────────────────────────────────────────────
 
@@ -355,16 +355,31 @@ export function ReportDetailPage() {
 
   // ─── Publish ───────────────────────────────────────────────────────────────
 
-  async function handleDeleteDraft() {
+  async function handleDeleteReport() {
     if (!report) return
-    if (!confirm('Delete this draft report and all its expenses?')) return
-    setDeletingDraft(true)
-    // Delete all receipt images
-    const paths = expenses.map(e => `expenses/${e.id}`)
-    if (paths.length) await supabase.storage.from('receipts').remove(paths)
-    // Delete report (cascades to expenses + ocr_raw)
-    await supabase.from('reports').delete().eq('id', report.id)
-    navigate('/me')
+    const st = report.status
+    let msg: string
+    if (st === 'draft') {
+      msg = 'Delete this draft report and all its expenses? Receipt files will be removed. This cannot be undone.'
+    } else if (st === 'pending') {
+      msg =
+        'Delete this request? The link you sent to mom will stop working, all slips will be removed, and receipt files will be deleted. This cannot be undone.'
+    } else if (st === 'approved') {
+      msg =
+        'Delete this approved report? Mom’s link will stop working and all data for this report will be removed. This cannot be undone.'
+    } else {
+      return
+    }
+    if (!confirm(msg)) return
+    setDeletingReport(true)
+    try {
+      const paths = expenses.map(e => `expenses/${e.id}`)
+      if (paths.length) await supabase.storage.from('receipts').remove(paths)
+      await supabase.from('reports').delete().eq('id', report.id)
+      navigate('/me')
+    } finally {
+      setDeletingReport(false)
+    }
   }
 
   async function handlePublish() {
@@ -454,15 +469,30 @@ export function ReportDetailPage() {
           <div className="detail-header-right">
             <span className={`status-badge status-${report.status}`}>{report.status}</span>
             {(report.status === 'pending' || report.status === 'approved') && (
-              <button type="button" className="btn-ghost" onClick={copyLink}>Copy link</button>
+              <>
+                <button type="button" className="btn-ghost" onClick={copyLink}>Copy link</button>
+                <button
+                  type="button"
+                  className="btn-danger-ghost"
+                  onClick={() => void handleDeleteReport()}
+                  disabled={deletingReport}
+                >
+                  {deletingReport
+                    ? 'Deleting…'
+                    : report.status === 'pending'
+                      ? 'Delete request'
+                      : 'Delete report'}
+                </button>
+              </>
             )}
             {report.status === 'draft' && (
               <button
+                type="button"
                 className="btn-danger-ghost"
-                onClick={handleDeleteDraft}
-                disabled={deletingDraft}
+                onClick={() => void handleDeleteReport()}
+                disabled={deletingReport}
               >
-                {deletingDraft ? 'Deleting…' : 'Delete draft'}
+                {deletingReport ? 'Deleting…' : 'Delete draft'}
               </button>
             )}
           </div>

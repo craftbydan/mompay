@@ -10,6 +10,7 @@ export function MePage() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchReports()
@@ -58,9 +59,36 @@ export function MePage() {
 
   async function handleDeleteDraft(e: React.MouseEvent, report: Report) {
     e.stopPropagation()
-    if (!confirm('Delete this draft report?')) return
-    await supabase.from('reports').delete().eq('id', report.id)
-    fetchReports()
+    if (!confirm('Delete this draft report and all its expenses? Receipt files will be removed. This cannot be undone.')) return
+    setDeletingReportId(report.id)
+    try {
+      const { data: rows } = await supabase.from('expenses').select('id').eq('report_id', report.id)
+      const paths = (rows ?? []).map(r => `expenses/${r.id}`)
+      if (paths.length) await supabase.storage.from('receipts').remove(paths)
+      await supabase.from('reports').delete().eq('id', report.id)
+      await fetchReports()
+    } finally {
+      setDeletingReportId(null)
+    }
+  }
+
+  async function handleDeleteSentReport(e: React.MouseEvent, report: Report) {
+    e.stopPropagation()
+    const isPending = report.status === 'pending'
+    const msg = isPending
+      ? 'Delete this request? The link you sent to mom will stop working, all slips will be removed, and receipt files will be deleted. This cannot be undone.'
+      : 'Delete this approved report? Mom’s link will stop working and all data for this report will be removed. This cannot be undone.'
+    if (!confirm(msg)) return
+    setDeletingReportId(report.id)
+    try {
+      const { data: rows } = await supabase.from('expenses').select('id').eq('report_id', report.id)
+      const paths = (rows ?? []).map(r => `expenses/${r.id}`)
+      if (paths.length) await supabase.storage.from('receipts').remove(paths)
+      await supabase.from('reports').delete().eq('id', report.id)
+      await fetchReports()
+    } finally {
+      setDeletingReportId(null)
+    }
   }
 
   return (
@@ -120,21 +148,36 @@ export function MePage() {
                   </td>
                   <td className="row-actions">
                     {(report.status === 'pending' || report.status === 'approved') && (
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        onClick={e => copyReportLink(e, report.token)}
-                      >
-                        Copy link
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={e => copyReportLink(e, report.token)}
+                        >
+                          Copy link
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger-ghost"
+                          disabled={deletingReportId === report.id}
+                          onClick={e => void handleDeleteSentReport(e, report)}
+                        >
+                          {deletingReportId === report.id
+                            ? 'Deleting…'
+                            : report.status === 'pending'
+                              ? 'Delete request'
+                              : 'Delete report'}
+                        </button>
+                      </>
                     )}
                     {report.status === 'draft' && (
                       <button
                         type="button"
                         className="btn-danger-ghost"
-                        onClick={e => handleDeleteDraft(e, report)}
+                        disabled={deletingReportId === report.id}
+                        onClick={e => void handleDeleteDraft(e, report)}
                       >
-                        Delete
+                        {deletingReportId === report.id ? 'Deleting…' : 'Delete draft'}
                       </button>
                     )}
                   </td>
